@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"math"
 	"net/http"
 	"strconv"
@@ -25,6 +26,7 @@ type Receipt struct {
 }
 
 func main() {
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	points := make(map[string]int)
 
@@ -37,7 +39,7 @@ func main() {
 		if exists {
 			ctx.JSON(http.StatusOK, gin.H{"points": point})
 		} else {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "item not found"})
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "receipt not found"})
 		}
 	})
 
@@ -64,18 +66,18 @@ func main() {
 			_, exists = points[id]
 		}
 
-		current_points := calculatePoints(receipt)
-		if current_points == -1 {
+		totalPoints, err := calculatePoints(&receipt)
+		if err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{
 				"error": "the receipt is invalid",
 			})
 			return
 		}
 
-		points[id] = current_points
+		points[id] = totalPoints
 
 		ctx.JSON(http.StatusOK, gin.H{
-			id: current_points,
+			"id": id,
 		})
 	})
 
@@ -83,73 +85,114 @@ func main() {
 }
 
 // Calculating points for each receipt passed into POST endpoint according to provided api.yml.
-func calculatePoints(receipt Receipt) int {
-	currentPoints := 0
+func calculatePoints(receipt *Receipt) (int, error) {
+	totalPoints := 0
+
+	totalPoints += calculateRetailerPoints(receipt)
+
+	totalPricePoints, err := calucateTotalPricePoints(receipt)
+	if err != nil {
+		return -1, err
+	}
+
+	totalPoints += totalPricePoints
+
+	itemPoints, err := calculateItemPoints(receipt)
+	if err != nil {
+		return -1, err
+	}
+	totalPoints += itemPoints
+
+	dateTimePoints, err := calculateDateTimePoints(receipt)
+	if err != nil {
+		return -1, err
+	}
+	totalPoints += dateTimePoints
+
+	return totalPoints, nil
+}
+
+func calculateRetailerPoints(receipt *Receipt) int {
+	retailPoints := 0
 
 	for _, char := range receipt.Retailer {
 		if unicode.IsLetter(char) || unicode.IsDigit(char) {
-			currentPoints += 1
+			retailPoints += 1
 		}
 	}
 
+	return retailPoints
+}
+
+func calucateTotalPricePoints(receipt *Receipt) (int, error) {
+	totalPricePoints := 0
 	total, err := strconv.ParseFloat(receipt.Total, 64)
 
 	if err != nil {
-		return -1
+		return -1, err
 	}
 
 	if math.Mod(total, 1) == 0 {
-		currentPoints += 50
+		totalPricePoints += 50
 	}
 
 	if math.Mod(total*4, 1) == 0 {
-		currentPoints += 25
+		totalPricePoints += 25
 	}
 
+	return totalPricePoints, nil
+}
+
+func calculateItemPoints(receipt *Receipt) (int, error) {
+	itemPoints := 0
 	everyTwoItems := len(receipt.Items) / 2
-	currentPoints += everyTwoItems * 5
+	itemPoints += everyTwoItems * 5
 
 	for _, item := range receipt.Items {
 		if len(strings.TrimSpace(item.ShortDescription))%3 == 0 {
 			price, err := strconv.ParseFloat(item.Price, 64)
 			if err != nil {
-				return -1
+				return -1, err
 			}
-			currentPoints += int(math.Ceil(price * .2))
+			itemPoints += int(math.Ceil(price * .2))
 		}
 	}
+	return itemPoints, nil
+}
 
+func calculateDateTimePoints(receipt *Receipt) (int, error) {
+	dateTimePoints := 0
 	split_date := strings.Split(receipt.PurchaseDate, "-")
 	if len(split_date) != 3 {
-		return -1
+		return -1, errors.New("invalid purchaseDate")
 	}
 	day, err := strconv.Atoi(split_date[2])
 	if err != nil {
-		return -1
+		return -1, errors.New("cannot cast day to int")
 	}
 
 	if day%2 == 1 {
-		currentPoints += 6
+		dateTimePoints += 6
 	}
 
 	split_time := strings.Split(receipt.PurchaseTime, ":")
 	if len(split_time) < 2 {
-		return -1
+		return -1, errors.New("invalid purchaseTime")
 	}
 	hour, err := strconv.Atoi(split_time[0])
 	if err != nil {
-		return -1
+		return -1, errors.New("cannot cast hour to int")
 	}
 	minute, err := strconv.Atoi(split_time[1])
 	if err != nil {
-		return -1
+		return -1, errors.New("cannot cast day to int")
 	}
 
 	// Assuming rule "10 points if the time of purchase is after 2:00pm and before 4:00pm." means 2:00pm and 4:00pm are non
 	// inclusive of those times.
 	if (hour == 14 && minute != 0) || (hour == 15) {
-		currentPoints += 10
+		dateTimePoints += 10
 	}
 
-	return currentPoints
+	return dateTimePoints, nil
 }
