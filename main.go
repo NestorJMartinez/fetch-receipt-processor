@@ -82,7 +82,7 @@ func main() {
 	router.Run(":8080")
 }
 
-// calculating points for each receipt passed into POST endpoint according to provided api.yml
+// Calculating points for each receipt passed into POST endpoint according to provided api.yml.
 func calculatePoints(receipt Receipt) int {
 	currentPoints := 0
 
@@ -132,16 +132,22 @@ func calculatePoints(receipt Receipt) int {
 		currentPoints += 6
 	}
 
-	split_hour := strings.Split(receipt.PurchaseTime, ":")
-	if len(split_hour) < 2 {
+	split_time := strings.Split(receipt.PurchaseTime, ":")
+	if len(split_time) < 2 {
 		return -1
 	}
-	hour, err := strconv.Atoi(split_hour[0])
+	hour, err := strconv.Atoi(split_time[0])
+	if err != nil {
+		return -1
+	}
+	minute, err := strconv.Atoi(split_time[1])
 	if err != nil {
 		return -1
 	}
 
-	if hour >= 14 && hour < 16 {
+	// Assuming rule "10 points if the time of purchase is after 2:00pm and before 4:00pm." means 2:00pm and 4:00pm are non
+	// inclusive of those times.
+	if (hour == 14 && minute != 0) || (hour == 15) {
 		currentPoints += 10
 	}
 

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func openFile(t *testing.T, file string, receipt *Receipt) {
+func readJsonFile(t *testing.T, file string, receipt *Receipt) {
 	jsonFile, err := os.Open(file)
 	if err != nil {
 		t.Error("error opening file " + file)
@@ -30,7 +30,7 @@ func openFile(t *testing.T, file string, receipt *Receipt) {
 
 func TestCalculateTargetPoints(t *testing.T) {
 	var receipt Receipt
-	openFile(t, "testjsons/target.json", &receipt)
+	readJsonFile(t, "testjsons/target.json", &receipt)
 
 	expected := 28
 	actual := calculatePoints(receipt)
@@ -42,7 +42,7 @@ func TestCalculateTargetPoints(t *testing.T) {
 
 func TestCalculateCornerMartPoints(t *testing.T) {
 	var receipt Receipt
-	openFile(t, "testjsons/cornermart.json", &receipt)
+	readJsonFile(t, "testjsons/cornermart.json", &receipt)
 
 	expected := 109
 	actual := calculatePoints(receipt)
@@ -55,9 +55,35 @@ func TestCalculateCornerMartPoints(t *testing.T) {
 
 func TestCalculateWalmartPoints(t *testing.T) {
 	var receipt Receipt
-	openFile(t, "testjsons/walmart.json", &receipt)
+	readJsonFile(t, "testjsons/walmart.json", &receipt)
 
-	expected := 53
+	expected := 43
+	actual := calculatePoints(receipt)
+
+	if expected != actual {
+		t.Errorf("expected %d, got %d", expected, actual)
+		t.Fail()
+	}
+}
+
+func TestCalculateMorningPoints(t *testing.T) {
+	var receipt Receipt
+	readJsonFile(t, "testjsons/morning-receipt.json", &receipt)
+
+	expected := 15
+	actual := calculatePoints(receipt)
+
+	if expected != actual {
+		t.Errorf("expected %d, got %d", expected, actual)
+		t.Fail()
+	}
+}
+
+func TestCalculateSimpleReceipt(t *testing.T) {
+	var receipt Receipt
+	readJsonFile(t, "testjsons/simple-receipt.json", &receipt)
+
+	expected := 31
 	actual := calculatePoints(receipt)
 
 	if expected != actual {
