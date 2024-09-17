@@ -1,0 +1,15 @@
+{
+    "retailer": "Walmart",
+    "purchaseDate": "2024-09-15",
+    "purchaseTime": "14:01",
+    "items": [
+      {
+        "shortDescription": "Oreos",
+        "price": "6.49"
+      },{
+        "shortDescription": "Shoe Dog",
+        "price": "18.01"
+      }
+    ],
+    "total": "24.50"
+  }
